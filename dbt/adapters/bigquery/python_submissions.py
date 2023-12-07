@@ -37,9 +37,12 @@ class BaseDataProcHelper(PythonJobHelper):
         self.credential = credential
         self.GoogleCredentials = BigQueryConnectionManager.get_credentials(credential)
         self.storage_client = storage.Client(
-            project=self.credential.execution_project, credentials=self.GoogleCredentials
+            project=self.credential.execution_project,
+            credentials=self.GoogleCredentials,
         )
-        self.gcs_location = "gs://{}/{}".format(self.credential.gcs_bucket, self.model_file_name)
+        self.gcs_location = "gs://{}/{}".format(
+            self.credential.gcs_bucket, self.model_file_name
+        )
 
         # set retry policy, default to timeout after 24 hours
         self.timeout = self.parsed_model["config"].get(
@@ -49,7 +52,9 @@ class BaseDataProcHelper(PythonJobHelper):
             predicate=POLLING_PREDICATE, maximum=10.0, timeout=self.timeout
         )
         self.client_options = ClientOptions(
-            api_endpoint="{}-dataproc.googleapis.com:443".format(self.credential.dataproc_region)
+            api_endpoint="{}-dataproc.googleapis.com:443".format(
+                self.credential.dataproc_region
+            )
         )
         self.job_client = self._get_job_client()
 
@@ -93,6 +98,14 @@ class ClusterDataprocHelper(BaseDataProcHelper):
             "placement": {"cluster_name": self._get_cluster_name()},
             "pyspark_job": {
                 "main_python_file_uri": self.gcs_location,
+                "archive_uris": self.parsed_model["config"].get(
+                    "dataproc_archive_uris",
+                    [],
+                ),
+                "properties": self.parsed_model["config"].get(
+                    "dataproc_properties",
+                    {},
+                ),
             },
         }
         operation = self.job_client.submit_job_as_operation(  # type: ignore
